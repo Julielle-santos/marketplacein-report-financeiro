@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: financial-report-config
+  namespace: marketplace
+data:
+  BUSINESS_RECIPIENTS: "armando.junior@reded1000.com.br,helena.moreira@reded1000.com.br, jansen.arouche@profarma.com.br, gabrielle.nascimento@reded1000.com.br, laerte.souza@reded1000.com.br"
+  IT_RECIPIENTS: "armando.junior@reded1000.com.br"
+  SMTP_SERVER: "mailerprofarma.ger.local"
+  SMTP_PORT: "587"
+  EMAIL_FROM: "TI Rede d1000 <d1000.ti.digital@mailerprofarma.com.br>"
+  BASE_URL: "https://api.omnik.io" 

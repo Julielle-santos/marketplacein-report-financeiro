@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financial-report
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: financial-report
+  template:
+    metadata:
+      labels:
+        app: financial-report
+    spec:
+      imagePullSecrets:
+      - name: harbor-registry-secret
+      containers:
+      - name: financial-report
+        image: hcr.profarma.com.br/d1000-digital/financial-report:1.0.22
+        envFrom:
+        - configMapRef:
+            name: financial-report-config
+        - secretRef:
+            name: financial-report-secrets
+        volumeMounts:
+        - name: reports
+          mountPath: /app/reports
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: reports
+        persistentVolumeClaim:
+          claimName: financial-report-reports-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: financial-report-logs-pvc

@@ -1,0 +1,756 @@
+Passo 1: Consultar período de repasse vigente 
+
+ curl --location 'https://api.omnik.io/v1/financial/cycle/available-transfers?typeOfCycle=MONTHLY' --header 'token:  f59a949d-5c65-4783-801b-7a0d00f3202d' --header 'application_id:  9605993459' --header 'seller:  YSKY97446016589275' --header 'Content-Type:  application/json'
+ 
+Buscar informação do campo "transferDate" quando "isCurrent" = true. 
+
+Exemplo de resposta da API:
+[
+    {
+        "transferDate": "2025-07-08",
+        "isCurrent": true,
+        "beginningOfCycle": "2025-05-26T00:00:00",
+        "endOfCycle": "2025-06-25T23:59:59"
+    },
+    {
+        "transferDate": "2025-06-09",
+        "isCurrent": false,
+        "beginningOfCycle": "2025-04-26T00:00:00",
+        "endOfCycle": "2025-05-25T00:00:00"
+    },
+    {
+        "transferDate": "2025-04-07",
+        "isCurrent": false,
+        "beginningOfCycle": "2025-02-26T00:00:00",
+        "endOfCycle": "2025-03-25T00:00:00"
+    }
+]
+
+Passo 2: consultar pedidos do período de repasse vigente
+
+Realizar GET no endpoint https://api.omnik.io/v1/financial/cycle/registers?transferDate=YYYY-MM-DD&isCurrent=true 
+
+curl --location 'https://api.omnik.io/v1/financial/cycle/registers?transferDate=2025-07-08&isCurrent=true' \
+--header 'token: f59a949d-5c65-4783-801b-7a0d00f3202d' \
+--header 'application_id: 9605993459' \
+--header 'seller: YSKY97446016589275' \
+--header 'Content-Type: application/json'
+
+Onde "YYYY-MM-DD" correspondem à data consultada no passo 1. 
+
+Buscar os dados retornados em "marketplaceId" quando o campo "type" for igual a "SALE". 
+Caso haja mais de 1 pedido no ciclo consultado, o resultado será um array de objetos.
+Necessário também buscar as informações dos campos "sellerName" e "tenant", que indica o código do seller e será usado nas próximas consultas. 
+
+No exemplo abaixo, temos 2 pedidos no ciclo consultado:
+1 - "marketplaceId": "1532291799464-01"; "tenant": "YSKY97446016589275"; e "sellerName": "Unicpharma" 
+2 - "marketplaceId": "1535481826152-01"; "tenant": "YSKY97446016589275"; e "sellerName": "Unicpharma" 
+
+Exemplo de resposta da API, passando como parâmetro "transferDate": "2025-07-08":
+[
+    {
+        "id": "bA1yg74Gd7B314BDw2k88o6Gf83aQy",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-15T10:04:48.683000",
+        "lastUpdate": "2025-05-26T14:27:12.365000",
+        "orderId": "23",
+        "marketplaceId": "1532291799464-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1799464",
+        "calculationId": "6825e670c51e9713fe814997",
+        "type": "SALE",
+        "status": "RELEASED",
+        "orderStatus": "DELIVERED",
+        "description": "Pedido 1532291799464-01",
+        "releaseDate": "2025-05-26T14:27:12.365000",
+        "value": 36.15,
+        "orderLastUpdate": "2025-05-26T14:27:12.310000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "1kSKNb7W4sgbs7B3R1v42i88698EBf",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-15T10:04:48.698000",
+        "lastUpdate": "2025-05-26T14:27:12.370000",
+        "orderId": "23",
+        "marketplaceId": "1532291799464-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1799464",
+        "calculationId": "6825e670c51e9713fe814997",
+        "type": "COMM_PRODUCT",
+        "status": "RELEASED",
+        "orderStatus": "DELIVERED",
+        "description": "Comissão para produto do pedido 1532291799464-01",
+        "releaseDate": "2025-05-26T14:27:12.370000",
+        "value": -3.88,
+        "orderLastUpdate": "2025-05-26T14:27:12.310000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "gLIV1e74731Bw428KK870tBOTs4zrz",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-15T10:04:48.704000",
+        "lastUpdate": "2025-05-26T14:27:12.374000",
+        "orderId": "23",
+        "marketplaceId": "1532291799464-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1799464",
+        "calculationId": "6825e670c51e9713fe814997",
+        "type": "COMM_FREIGHT",
+        "status": "RELEASED",
+        "orderStatus": "DELIVERED",
+        "description": "Comissão para frete do pedido 1532291799464-01",
+        "releaseDate": "2025-05-26T14:27:12.374000",
+        "value": -1.54,
+        "orderLastUpdate": "2025-05-26T14:27:12.310000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "X17484637k72MQR2bvRqz7ut2MdTje",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.272000",
+        "lastUpdate": "2025-05-28T17:22:52.292000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "calculationId": "6837709c6a28ac4297e04d3d",
+        "type": "SALE",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Pedido 1535481826152-01",
+        "releaseDate": "2025-05-28T17:22:52.292000",
+        "value": 64.57,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "174o8A4i6LFXmu3kJRU772S27C9FUD",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.279000",
+        "lastUpdate": "2025-05-28T17:22:52.292000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "calculationId": "6837709c6a28ac4297e04d3d",
+        "type": "COMM_PRODUCT",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Comissão para produto do pedido 1535481826152-01",
+        "releaseDate": "2025-05-28T17:22:52.292000",
+        "value": -6.6,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "1s74IxKW846F3w7pP7BeWWt2283FEr",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.283000",
+        "lastUpdate": "2025-05-28T17:22:52.292000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "calculationId": "6837709c6a28ac4297e04d3d",
+        "type": "COMM_FREIGHT",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Comissão para frete do pedido 1535481826152-01",
+        "releaseDate": "2025-05-28T17:22:52.292000",
+        "value": -3.09,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "17H4A84ax6zY3B7OF7cMrZ231d1Hfd",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.311000",
+        "lastUpdate": "2025-05-28T17:22:52.311000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "type": "SALE_ITEM_CANC",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Cancelamento de item - Pedido 36",
+        "releaseDate": "2025-05-28T17:22:52.292000",
+        "value": -64.57,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "17K4Ig8O4YR63Q77231UU6pDYemUHH",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.316000",
+        "lastUpdate": "2025-05-28T17:22:52.316000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "type": "COMM_PRODUCT_CANC",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Cancelamento - Comissão para produto do pedido 36",
+        "releaseDate": "2025-05-28T17:22:52.316000",
+        "value": 6.6,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    },
+    {
+        "id": "bK1k7j4L84x63T7723gKO2r0lJjxuX",
+        "tenant": "YSKY97446016589275",
+        "operator": "YSKY12108897000150",
+        "createDate": "2025-05-28T17:22:52.320000",
+        "lastUpdate": "2025-05-28T17:22:52.320000",
+        "orderId": "36",
+        "marketplaceId": "1535481826152-01",
+        "sellerName": "Unicpharma",
+        "operatorName": "D1000",
+        "siteId": "1826152",
+        "type": "COMM_FREIGHT_CANC",
+        "status": "RELEASED",
+        "orderStatus": "CANCELED",
+        "description": "Cancelamento - Comissão para frete do pedido 36",
+        "releaseDate": "2025-05-28T17:22:52.316000",
+        "value": 3.09,
+        "orderLastUpdate": "2025-05-28T17:21:17.716000",
+        "installmentNumber": 1
+    }
+]
+
+Passo 3: Consultar detalhes do pedido
+
+GET https://api.omnik.io/HUB/v1/orders/marketplaceid/{pedido} 
+
+curl --location 'https://api.omnik.io/HUB/v1/orders/marketplaceid/1532291799464-01' \
+--header 'token: f59a949d-5c65-4783-801b-7a0d00f3202d' \
+--header 'application_id: 9605993459' \
+--header 'seller: YSKY97446016589275' \
+--header 'Content-Type: application/json'
+
+Onde "pedido" é o marketplaceId do pedido consultado no passo 2. 
+
+Para obter as informações detalhadas do pedido, é necessário realizar uma consulta diferente para cada pedido do ciclo. 
+
+Na consulta de pedido, será necessário buscar as informações abaixo: 
+- orderData.id 
+- tenant 
+- createDate 
+- deliveryData.deliveryDate 
+- orderData.approvalDate 
+- orderValuesData.value 
+- items.quantityData.quantity 
+- items.priceData.unitPrice 
+- items.priceData.discountUnit 
+- items.freightData.chargedValue 
+- formsPayments.type 
+- formsPayments.card 
+- formsPayments.amountPlots 
+
+Exemplo de resposta da API, passando como parâmetro "marketplaceId": "1532291799464-01":
+{
+    "tenant": "97446016589275",
+    "operator": "12108897000150",
+    "account": "vtexappkey-dmvfarma-UYLPAR",
+    "createDate": "2025-05-15T10:04:46.638000",
+    "lastUpdate": "2025-05-26T14:27:12.310000",
+    "lastEvent": null,
+    "orderData": {
+        "id": "23",
+        "status": "DELIVERED",
+        "orderDate": "2025-05-15T10:03:45.000000",
+        "notApprovalDate": null,
+        "approvalDate": "2025-05-15T10:03:54.000000",
+        "cancelDate": null,
+        "marketPlaceIdOrder": null,
+        "shippingId": null,
+        "salesChannel": null,
+        "placeOfSale": null,
+        "excludeFromSellerIndex": null
+    },
+    "marketplaceData": {
+        "marketPlaceId": "1532291799464-01",
+        "siteId": "1799464",
+        "marketplace": "YSKY12108897000150",
+        "lastUpdate": "2025-05-15T10:03:57.000000",
+        "active": false
+    },
+    "customerData": {
+        "name": "André  Oliveira",
+        "stateRegistration": "",
+        "exemptStateRegistration": false,
+        "document": "02908969750",
+        "documentType": "cpf",
+        "customerType": "PF",
+        "email": "adonael2@gmail.com-250301183599b.ct.vtex.com.br",
+        "emailWithMask": "buyer.02908969750@reded1000.com.br",
+        "addressData": {
+            "type": null,
+            "zipcode": "",
+            "address": null,
+            "number": null,
+            "complement": null,
+            "reference": null,
+            "neighborhood": null,
+            "city": null,
+            "state": null,
+            "stateAcronym": null,
+            "country": null
+        },
+        "phones": [
+            {
+                "type": "NORMAL",
+                "ddi": null,
+                "ddd": "21",
+                "number": "971784461",
+                "local": null,
+                "mobile": null,
+                "telephone": null
+            }
+        ]
+    },
+    "invoiceData": {
+        "tenant": null,
+        "operator": null,
+        "id": "0",
+        "key": "35250512185547000198550010003138291651701214",
+        "status": "AUTORIZADA",
+        "number": "000313829",
+        "integrationNumber": null,
+        "serie": "000",
+        "cfop": null,
+        "stateRegistration": "",
+        "date": "2025-05-14T21:00:00.000000",
+        "linkXML": null,
+        "base64XML": null,
+        "linkDANFE": null,
+        "base64DANFE": null,
+        "typeSEFAZ": null,
+        "messageSEFAZ": null,
+        "note": null
+    },
+    "deliveryData": {
+        "type": "PAC CORREIOS",
+        "deliveryChannel": "delivery",
+        "estimatedDeliveryDate": "2025-05-30T10:03:57.000000",
+        "deliveryDate": "2025-05-26T14:27:00.000000",
+        "crossdockingDays": 0,
+        "trackingCode": "AM440010015BR",
+        "trackingURL": "https://www2.correios.com.br/sistemas/rastreamento/",
+        "shippingMethod": "Correios PAC",
+        "deliveryMethodId": "PAC CORREIOS",
+        "deliveryMethodName": "PAC CORREIOS",
+        "quotationId": null,
+        "shippingCompany": "Correios PAC",
+        "documentShippingCompany": "",
+        "estimatedDeliveryDateCalculated": null,
+        "sentDelayed": false,
+        "addressData": {
+            "type": "RESIDENCIAL",
+            "zipcode": "22745005",
+            "address": "Estrada dos Três Rios",
+            "number": "1466",
+            "complement": "BL. 20  AP. 302",
+            "reference": null,
+            "neighborhood": "Freguesia (Jacarepaguá)",
+            "city": "Rio de Janeiro",
+            "state": "Rio de Janeiro",
+            "stateAcronym": "RJ",
+            "country": "BRA"
+        },
+        "deliveriesExceptions": []
+    },
+    "shippingData": {
+        "shippingDate": "2025-05-15T15:22:00.000000",
+        "estimatedShippingDate": "2025-05-19T10:03:54.000000",
+        "shippingCreateDate": null,
+        "shippingExpireDate": null,
+        "shippingLabel": null,
+        "shippingLabelLink": null,
+        "shippingLabelBase64": null,
+        "shippingLabelChannelLink": null,
+        "shippingLabelChannelBase64": null
+    },
+    "freightData": {
+        "type": "tipoEnvioFrete",
+        "chargedValue": 20.59,
+        "shipmentChargedValue": 0.0,
+        "transitTime": 0,
+        "commercialConditionId": null,
+        "distributionCenterId": null,
+        "freightTakeRateException": null,
+        "freightTakeRate": null,
+        "freightTakeRateSeller": null,
+        "freightTakeRateType": null,
+        "freightTakeRateMarketplace": null,
+        "freightTakeRateSellerIndex": null,
+        "freightTakeRateSubsidyPercentage": null,
+        "costType": null,
+        "weightType": null,
+        "complementLimitMarketplace": null,
+        "modalType": null
+    },
+    "orderValuesData": {
+        "items": 1,
+        "value": 72.29,
+        "discount": 0.0,
+        "interest": 0.0,
+        "netValue": 0.0,
+        "grossValue": 0.0
+    },
+    "platformData": {
+        "acronym": "OK",
+        "platform": "OMNIK",
+        "active": false
+    },
+    "paymentData": {
+        "responsible": "André Luiz de Oliveira",
+        "addressData": {
+            "type": "RESIDENCIAL",
+            "zipcode": "22745005",
+            "address": "Estrada dos Três Rios",
+            "number": "1466",
+            "complement": "BL. 20  AP. 302",
+            "reference": null,
+            "neighborhood": "Freguesia (Jacarepaguá)",
+            "city": "Rio de Janeiro",
+            "state": "Rio de Janeiro",
+            "stateAcronym": "RJ",
+            "country": "BRA"
+        },
+        "formsPayments": [
+            {
+                "marketPlaceId": null,
+                "sequence": null,
+                "type": "CARTAO_CREDITO",
+                "value": 72.29,
+                "status": "approved",
+                "amountPlots": 2,
+                "currencies": null,
+                "card": "MASTERCARD",
+                "operation": null,
+                "valid": false,
+                "formPaymentId": null,
+                "paymentConditionId": null,
+                "nsu": "3960265298",
+                "paymentId": "90B866460A9E4D9EB286CB326A64E579",
+                "transactionId": "5AAA7E72373C4606950B33FF889CC302",
+                "transactionStatus": null,
+                "authorizationId": "463663"
+            }
+        ],
+        "paymentMethods": []
+    },
+    "cancellationsData": [],
+    "devolutionsData": [],
+    "items": [
+        {
+            "tenant": null,
+            "skuData": {
+                "id": "173k645N804O9982",
+                "sku": "4631",
+                "productType": null,
+                "productCondition": null,
+                "skuOriginal": null,
+                "skuName": "Composto Probióticos Turbinados - 30 Caps",
+                "gtin": "7896614129458",
+                "model": "4631",
+                "crossdockingDays": 0,
+                "supplierCode": null,
+                "erpCode": null,
+                "establishmentCode": null,
+                "moderationStatus": "APROVADO",
+                "moderationDate": "2025-05-09T11:45:02+00:00",
+                "active": true,
+                "platformId": "4631",
+                "description": null,
+                "descriptionHTML": null,
+                "refId": null
+            },
+            "priceData": {
+                "unitPrice": 51.7,
+                "discountUnit": 0.0,
+                "netPrice": 0.0,
+                "grossPrice": 0.0
+            },
+            "quantityData": {
+                "quantity": 1,
+                "returnedQuantity": 0
+            },
+            "freightData": {
+                "type": null,
+                "chargedValue": 20.59,
+                "shipmentChargedValue": null,
+                "transitTime": 0,
+                "commercialConditionId": null,
+                "distributionCenterId": null,
+                "freightTakeRateException": null,
+                "freightTakeRate": null,
+                "freightTakeRateSeller": null,
+                "freightTakeRateType": null,
+                "freightTakeRateMarketplace": null,
+                "freightTakeRateSellerIndex": null,
+                "freightTakeRateSubsidyPercentage": null,
+                "costType": null,
+                "weightType": null,
+                "complementLimitMarketplace": null,
+                "modalType": null
+            },
+            "stockData": {
+                "stock": "0",
+                "minStock": "0",
+                "move": true
+            },
+            "vendors": null,
+            "campaigns": [],
+            "operatorCampaigns": [],
+            "monitoredPriceData": null
+        }
+    ],
+    "receivingPeriod": {
+        "calculatedDeliveryTime": null,
+        "observation": null,
+        "receivingDays": []
+    },
+    "creditInformationData": null,
+    "campaigns": [],
+    "integrators": [
+        {
+            "status": "APPROVED",
+            "name": "VTEX_INTEGRADOR",
+            "id": "PRF-1532291799464-01"
+        }
+    ],
+    "marketing": null,
+    "priceMonitoringData": null,
+    "commissionData": {
+        "commissionPercentage": 15.0,
+        "freightCommissionPercentage": 15.000000000000002,
+        "commissionValue": 10.8435,
+        "freightCommissionValue": 3.0885000000000002,
+        "isExternalCalculation": false,
+        "paidWithBonus": false
+    },
+    "PostageData": null
+}
+
+Passo 4: Consultar dados financeiros do pedido
+GET https://api.omnik.io/v1/financial/register/order-financial-detail/{pedido}
+
+curl --location 'https://api.omnik.io/v1/financial/register/order-financial-detail/1532291799464-01' \
+--header 'token: f59a949d-5c65-4783-801b-7a0d00f3202d' \
+--header 'application_id: 9605993459' \
+--header 'seller: YSKY97446016589275' \
+--header 'Content-Type: application/json' \
+--header 'tenant: YSKY97446016589275'
+
+Onde "pedido" também corresponderá aos dados retornados no passo 2, no campo "marketplaceId". 
+Para obter as informações financeiras detalhadas do pedido, é necessário realizar uma consulta diferente para cada pedido do ciclo, como no passo 3. 
+ 
+Indicar o tenant correspondente ao pedido (marketplaceId) consultado. 
+
+Na consulta dos dados financeiros do pedido, será necessário buscar as informações abaixo.
+
+- orderData.id 
+- tenant 
+- createDate 
+- deliveryData.deliveryDate 
+- orderData.approvalDate 
+- orderValuesData.value 
+- items.quantityData.quantity 
+- items.priceData.unitPrice 
+- items.priceData.discountUnit 
+- items.freightData.chargedValue 
+- formsPayments.type 
+- formsPayments.card 
+- formsPayments.amountPlots 
+
+Exemplo de resposta da API, passando como parâmetro "marketplaceId": "1532291799464-01" e outras informações no header:
+
+{
+    "orderId": "23",
+    "marketplaceId": "1532291799464-01",
+    "commissionOrigins": [
+        {
+            "sku": "4631",
+            "commissionOrigin": "Contrato do Seller",
+            "discountCommissionOrigins": []
+        }
+    ],
+    "itensCommissionPercent": 15.0,
+    "itensCommissionValue": 7.76,
+    "freightCommissionPercent": 15.000000000000002,
+    "freightCommissionValue": 3.09,
+    "totalCommissionValue": 10.84,
+    "financialCicleType": "MONTHLY",
+    "financialTransferDaysAfterEndCicle": 13,
+    "totalTransferSeller": 61.45,
+    "financialStatements": [
+        {
+            "id": "bA1yg74Gd7B314BDw2k88o6Gf83aQy",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.683000",
+            "lastUpdate": "2025-05-26T14:27:12.365000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "SALE",
+            "status": "RELEASED",
+            "description": "Pedido 1532291799464-01",
+            "releaseDate": "2025-05-26T14:27:12.365000",
+            "value": 36.15,
+            "installmentNumber": 1,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-05-15T10:04:48.683000",
+            "isMultiInstallments": true
+        },
+        {
+            "id": "JS1B7jj4D73h1Ah4288a68iM3cJHKd",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.683000",
+            "lastUpdate": "2025-05-15T10:04:48.683000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "SALE",
+            "status": "WAITING_FOR_AVAILABILITY",
+            "description": "Pedido 1532291799464-01",
+            "value": 36.15,
+            "installmentNumber": 2,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-06-15T10:04:48.683000",
+            "isMultiInstallments": true
+        },
+        {
+            "id": "1kSKNb7W4sgbs7B3R1v42i88698EBf",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.698000",
+            "lastUpdate": "2025-05-26T14:27:12.370000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "COMM_PRODUCT",
+            "status": "RELEASED",
+            "description": "Comissão para produto do pedido 1532291799464-01",
+            "releaseDate": "2025-05-26T14:27:12.370000",
+            "value": -3.88,
+            "installmentNumber": 1,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-05-15T10:04:48.698000",
+            "isMultiInstallments": true
+        },
+        {
+            "id": "17SX4731folk42yHf886PV9OsD8Nlx",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.698000",
+            "lastUpdate": "2025-05-15T10:04:48.698000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "COMM_PRODUCT",
+            "status": "WAITING_FOR_AVAILABILITY",
+            "description": "Comissão para produto do pedido 1532291799464-01",
+            "value": -3.88,
+            "installmentNumber": 2,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-06-15T10:04:48.698000",
+            "isMultiInstallments": true
+        },
+        {
+            "id": "gLIV1e74731Bw428KK870tBOTs4zrz",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.704000",
+            "lastUpdate": "2025-05-26T14:27:12.374000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "COMM_FREIGHT",
+            "status": "RELEASED",
+            "description": "Comissão para frete do pedido 1532291799464-01",
+            "releaseDate": "2025-05-26T14:27:12.374000",
+            "value": -1.54,
+            "installmentNumber": 1,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-05-15T10:04:48.704000",
+            "isMultiInstallments": true
+        },
+        {
+            "id": "p1IH7e47Z31pw4U2Q8q8i70Sh4tOER",
+            "tenant": "YSKY97446016589275",
+            "operator": "YSKY12108897000150",
+            "createDate": "2025-05-15T10:04:48.704000",
+            "lastUpdate": "2025-05-15T10:04:48.704000",
+            "orderId": "23",
+            "marketplaceId": "1532291799464-01",
+            "sellerName": "YSKY12108897000150",
+            "siteId": "1799464",
+            "calculationId": "6825e670c51e9713fe814997",
+            "type": "COMM_FREIGHT",
+            "status": "WAITING_FOR_AVAILABILITY",
+            "description": "Comissão para frete do pedido 1532291799464-01",
+            "value": -1.54,
+            "installmentNumber": 2,
+            "totalOfInstallments": 2,
+            "installmentAvailableDate": "2025-06-15T10:04:48.704000",
+            "isMultiInstallments": true
+        }
+    ]
+}
+
+Dados para inserir no arquivo excel:
+ORDER.orderData.id - Label: ID do Pedido
+ORDER.marketplaceData.marketPlaceId - Label: Pedido VTEX
+ORDER.tenant - Label: Código do Seller
+ORDER.createDate - Label: Data de criação do pedido
+ORDER.deliveryData.deliveryDate - Label: Data de entrega do pedido
+ORDER.orderData.approvalDate - Label: Data de aprovação do pedido
+FINANCIAL.financialCicleType - Label: Conciliação/Frequência de repasse
+ORDER.orderValuesData.value - Label: Total do pedido
+(ORDER.items.quantityData.quantity * (ORDER.items.priceData.unitPrice - ORDER.items.priceData.discountUnit)): Somar esse resultado para todos os itens do pedido - Label: Total do pedido
+ORDER.items.freightData.chargedValue : Somar esse valor para todos os itens do pedido - Label: Total do frete
+FINANCIAL.itensCommissionPercent - Label: Comissão Produto
+FINANCIAL.freightCommissionPercent - Label: Comissão Frete
+ORDER.formsPayments.type & ORDER.formsPayments.card & ORDER.formsPayments.amountPlots : Concatenar campos - Label: Meio de pagamento
+FINANCIAL.totalCommissionValue - Label: Comissão Total
+FINANCIAL.itensCommissionValue - Label: Comissão Produto
+FINANCIAL.freightCommissionValue - Label: Comissão Frete
+FINANCIAL.totalTransferSeller - Label: Total repasse
+Valor Produtos - Comissão Produto;
+Valor Frete - Comissão Frete;
+FINANCIAL.discounts.promotionId - Label: Campanha
+CAMPAIGN.initialDate - Label: Data de início da campanha
+CAMPAIGN.finalDate - Label: Data de fim da campanha
+CAMPAIGN.description - Label: Descrição da campanha

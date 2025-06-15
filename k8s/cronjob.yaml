@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: financial-report
+  namespace: marketplace
+spec:
+  schedule: "0 8 * * *"  # Executa todos os dias às 8h
+  successfulJobsHistoryLimit: 30  # Mantém histórico dos últimos 30 jobs bem-sucedidos
+  failedJobsHistoryLimit: 30      # Mantém histórico dos últimos 30 jobs com falha
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          imagePullSecrets:
+          - name: harbor-registry-secret
+          containers:
+          - name: financial-report
+            image: hcr.profarma.com.br/d1000-digital/financial-report:1.0.22
+            envFrom:
+            - configMapRef:
+                name: financial-report-config
+            - secretRef:
+                name: financial-report-secrets
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "200m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            volumeMounts:
+            - name: reports-volume
+              mountPath: /app/reports
+            - name: logs-volume
+              mountPath: /app/logs
+          volumes:
+          - name: reports-volume
+            persistentVolumeClaim:
+              claimName: financial-report-reports-pvc
+          - name: logs-volume
+            persistentVolumeClaim:
+              claimName: financial-report-logs-pvc
+          restartPolicy: OnFailure 

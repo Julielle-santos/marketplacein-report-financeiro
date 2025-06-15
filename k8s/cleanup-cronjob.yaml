@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: financial-report-cleanup
+spec:
+  schedule: "0 1 * * *"  # Executa diariamente às 1h da manhã
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          imagePullSecrets:
+          - name: harbor-registry-secret
+          containers:
+          - name: cleanup
+            image: hcr.profarma.com.br/d1000-digital/financial-report:1.0.22
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Remove arquivos mais antigos que 30 dias
+              find /app/reports -type f -mtime +30 -delete
+              find /app/logs -type f -mtime +30 -delete
+            volumeMounts:
+            - name: reports
+              mountPath: /app/reports
+            - name: logs
+              mountPath: /app/logs
+          volumes:
+          - name: reports
+            persistentVolumeClaim:
+              claimName: financial-report-reports-pvc
+          - name: logs
+            persistentVolumeClaim:
+              claimName: financial-report-logs-pvc
+          restartPolicy: OnFailure 
