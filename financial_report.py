@@ -143,12 +143,15 @@ def get_cycle_registers(transfer_date):
     logging.debug(f"Primeiros 3 registros: {json.dumps(registers[:3], indent=2)}")
     return registers
 
-def get_order_details(marketplace_id):
+def get_order_details(marketplace_id, tenant):
     """Consulta os detalhes do pedido"""
-    logging.info(f"=== Consultando detalhes do pedido {marketplace_id} ===")
+    logging.info(f"=== Consultando detalhes do pedido {marketplace_id} (tenant: {tenant}) ===")
     url = f"{BASE_URL}/HUB/v1/orders/marketplaceid/{marketplace_id}"
     
-    response = make_request('GET', url, headers=HEADERS)
+    # Cria headers específicos para este tenant
+    headers = {**HEADERS, 'seller': tenant}
+    
+    response = make_request('GET', url, headers=headers)
     order_details = response.json()
     logging.info(f"Detalhes do pedido {marketplace_id} obtidos com sucesso")
     logging.debug(f"Detalhes do pedido: {json.dumps(order_details, indent=2)}")
@@ -710,34 +713,81 @@ def process_orders():
         sale_registers = [reg for reg in cycle_registers if reg.get('type') == 'SALE']
         logging.info(f"Total de registros de venda encontrados: {len(sale_registers)}")
         
+        # Identifica e loga os diferentes tenants encontrados
+        unique_tenants = set()
+        tenant_counts = {}
+        for register in sale_registers:
+            tenant = register.get('tenant', '')
+            seller_name = register.get('sellerName', '')
+            if tenant:
+                unique_tenants.add(tenant)
+                if tenant not in tenant_counts:
+                    tenant_counts[tenant] = {'count': 0, 'seller_name': seller_name}
+                tenant_counts[tenant]['count'] += 1
+        
+        logging.info(f"Tenants encontrados: {len(unique_tenants)}")
+        for tenant, info in tenant_counts.items():
+            logging.info(f"  - Tenant: {tenant} ({info['seller_name']}) - {info['count']} registros")
+        
         # Processa cada pedido
         orders_data = []
+        processed_orders = set()  # Para evitar duplicatas
+        
         for i, register in enumerate(sale_registers, 1):
             marketplace_id = register.get('marketplaceId')
+            tenant = register.get('tenant', '')
+            
             if not marketplace_id:
                 logging.warning(f"Registro {i} não possui marketplaceId, pulando...")
                 continue
                 
-            logging.info(f"Processando pedido {i} de {len(sale_registers)}: {marketplace_id}")
-            
-            # Obtém detalhes do pedido
-            order_data = get_order_details(marketplace_id)
-            if not order_data:
-                logging.warning(f"Não foi possível obter detalhes do pedido {marketplace_id}, pulando...")
+            if not tenant:
+                logging.warning(f"Registro {i} não possui tenant, pulando pedido {marketplace_id}...")
                 continue
+            
+            # Evita processar o mesmo pedido múltiplas vezes
+            order_key = f"{marketplace_id}_{tenant}"
+            if order_key in processed_orders:
+                logging.debug(f"Pedido {marketplace_id} do tenant {tenant} já processado, pulando...")
+                continue
+            
+            processed_orders.add(order_key)
+            # Calcula total de pedidos únicos para o logging
+            total_unique_orders = len(set(f"{r.get('marketplaceId')}_{r.get('tenant')}" 
+                                        for r in sale_registers 
+                                        if r.get('marketplaceId') and r.get('tenant')))
+            logging.info(f"Processando pedido {len(processed_orders)} de {total_unique_orders}: {marketplace_id} (tenant: {tenant})")
+            
+            try:
+                # Obtém detalhes do pedido
+                order_data = get_order_details(marketplace_id, tenant)
+                if not order_data:
+                    logging.warning(f"Não foi possível obter detalhes do pedido {marketplace_id}, pulando...")
+                    continue
+                    
+                # Obtém detalhes financeiros do pedido
+                financial_data = get_order_financial_details(marketplace_id, tenant)
+                if not financial_data:
+                    logging.warning(f"Não foi possível obter detalhes financeiros do pedido {marketplace_id}, pulando...")
+                    continue
                 
-            # Obtém detalhes financeiros do pedido
-            financial_data = get_order_financial_details(marketplace_id, register.get('tenant', ''))
-            if not financial_data:
-                logging.warning(f"Não foi possível obter detalhes financeiros do pedido {marketplace_id}, pulando...")
+                # Processa os dados do pedido
+                order_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers)
+                orders_data.append(order_info)
+                logging.info(f"Pedido {marketplace_id} processado com sucesso")
+                
+            except Exception as e:
+                logging.error(f"Erro ao processar pedido {marketplace_id} do tenant {tenant}: {str(e)}")
+                logging.debug(f"Detalhes do erro: {str(e)}")
+                # Continua processando os outros pedidos mesmo se um falhar
                 continue
-            
-            # Processa os dados do pedido
-            order_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers)
-            orders_data.append(order_info)
-            logging.info(f"Pedido {marketplace_id} processado com sucesso")
         
         logging.info(f"Total de pedidos processados com sucesso: {len(orders_data)}")
+        logging.info(f"Total de tenants processados: {len(unique_tenants)}")
+        
+        if not orders_data:
+            logging.warning("Nenhum pedido foi processado com sucesso")
+            return
         
         # Gera o relatório Excel
         current_date = datetime.now().strftime("%Y%m%d")
@@ -752,6 +802,8 @@ def process_orders():
         Segue em anexo o relatório financeiro do marketplace referente à data {current_date}.
         
         Total de pedidos processados: {len(orders_data)}
+        Total de sellers: {len(unique_tenants)}
+        Sellers processados: {', '.join([f"{info['seller_name']} ({info['count']} pedidos)" for info in tenant_counts.values()])}
         
         Atenciosamente,
         TI Digital Rede d1000

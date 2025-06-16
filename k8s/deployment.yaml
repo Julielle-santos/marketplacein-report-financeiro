@@ -16,7 +16,7 @@ spec:
       - name: harbor-registry-secret
       containers:
       - name: financial-report
-        image: hcr.profarma.com.br/d1000-digital/financial-report:1.0.22
+        image: hcr.profarma.com.br/d1000-digital/financial-report:1.0.23
         env:
         - name: TZ
           value: "America/Sao_Paulo"
