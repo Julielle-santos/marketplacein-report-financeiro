@@ -13,6 +13,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from openpyxl.utils import get_column_letter
 
 # Configura o logging básico para stdout
 logging.basicConfig(
@@ -197,135 +198,135 @@ def format_payment_method(payment):
     plots = payment.get('amountPlots', '')
     return f"{payment_type} {card} {plots}x"
 
-def send_to_teams(df):
-    """Envia os dados do relatório para o webhook do Teams"""
-    try:
-        print("\n=== Iniciando envio do relatório para o Teams ===")
-        print(f"URL do webhook: {TEAMS_WEBHOOK_URL}")
-        
-        # Formata os dados para o Teams
-        print("Formatando dados para o Teams...")
-        table_data = []
-        for _, row in df.iterrows():
-            table_data.append({
-                "ID do Pedido": str(row['ID do Pedido']),
-                "Pedido VTEX": str(row['Pedido VTEX']),
-                "Código do Seller": str(row['Código do Seller']),
-                "Data de criação do pedido": str(row['Data de criação do pedido']),
-                "Data de entrega do pedido": str(row['Data de entrega do pedido']),
-                "Data de aprovação do pedido": str(row['Data de aprovação do pedido']),
-                "Conciliação/Frequência de repasse": str(row['Conciliação/Frequência de repasse']),
-                "Total do pedido": f"R$ {row['Total do pedido']:.2f}",
-                "Total dos produtos": f"R$ {row['Total dos produtos']:.2f}",
-                "Total do frete": f"R$ {row['Total do frete']:.2f}",
-                "Comissão Produto (%)": f"{row['Comissão Produto (%)']:.2f}%",
-                "Comissão Frete (%)": f"{row['Comissão Frete (%)']:.2f}%",
-                "Meio de pagamento": str(row['Meio de pagamento']),
-                "Comissão Total": f"R$ {row['Comissão Total']:.2f}",
-                "Comissão Produto": f"R$ {row['Comissão Produto']:.2f}",
-                "Comissão Frete": f"R$ {row['Comissão Frete']:.2f}",
-                "Total repasse": f"R$ {row['Total repasse']:.2f}",
-                "Valor Produtos - Comissão Produto": f"R$ {row['Valor Produtos - Comissão Produto']:.2f}",
-                "Valor Frete - Comissão Frete": f"R$ {row['Valor Frete - Comissão Frete']:.2f}"
-            })
-            
-            # Adiciona campos de campanha se existirem
-            if 'Campanha' in row:
-                table_data[-1].update({
-                    "Campanha": str(row['Campanha']),
-                    "Data de início da campanha": str(row['Data de início da campanha']),
-                    "Data de fim da campanha": str(row['Data de fim da campanha']),
-                    "Descrição da campanha": str(row['Descrição da campanha'])
-                })
-                
-        print(f"Dados formatados para {len(table_data)} pedidos")
-        
-        # Cria a mensagem para o Teams
-        print("Criando mensagem para o Teams...")
-        
-        # Cria o cabeçalho da tabela
-        headers = [
-            "ID do Pedido", "Pedido VTEX", "Código do Seller",
-            "Data de criação", "Data de entrega", "Data de aprovação",
-            "Conciliação", "Total pedido", "Total produtos", "Total frete",
-            "Comissão Produto (%)", "Comissão Frete (%)", "Meio de pagamento",
-            "Comissão Total", "Comissão Produto", "Comissão Frete",
-            "Total repasse", "Valor Produtos - Comissão", "Valor Frete - Comissão"
-        ]
-        
-        # Adiciona campos de campanha se existirem
-        if 'Campanha' in table_data[0]:
-            headers.extend(["Campanha", "Início Campanha", "Fim Campanha", "Descrição Campanha"])
-        
-        table_header = "| " + " | ".join(headers) + " |"
-        table_separator = "|" + "|".join(["---" for _ in range(len(headers))]) + "|"
-        
-        # Cria as linhas da tabela
-        table_rows = []
-        for item in table_data:
-            row_values = [
-                item['ID do Pedido'],
-                item['Pedido VTEX'],
-                item['Código do Seller'],
-                item['Data de criação do pedido'],
-                item['Data de entrega do pedido'],
-                item['Data de aprovação do pedido'],
-                item['Conciliação/Frequência de repasse'],
-                item['Total do pedido'],
-                item['Total dos produtos'],
-                item['Total do frete'],
-                item['Comissão Produto (%)'],
-                item['Comissão Frete (%)'],
-                item['Meio de pagamento'],
-                item['Comissão Total'],
-                item['Comissão Produto'],
-                item['Comissão Frete'],
-                item['Total repasse'],
-                item['Valor Produtos - Comissão Produto'],
-                item['Valor Frete - Comissão Frete']
-            ]
-            
-            # Adiciona campos de campanha se existirem
-            if 'Campanha' in item:
-                row_values.extend([
-                    item['Campanha'],
-                    item['Data de início da campanha'],
-                    item['Data de fim da campanha'],
-                    item['Descrição da campanha']
-                ])
-            
-            row = "| " + " | ".join(row_values) + " |"
-            table_rows.append(row)
-        
-        # Monta a tabela completa
-        table = "\n".join([table_header, table_separator] + table_rows)
-        
-        # Cria a mensagem final
-        message = {
-            "text": f"# Relatório Financeiro - {datetime.now().strftime('%d/%m/%Y')}\n\n{table}"
-        }
-        
-        print("Mensagem criada com sucesso")
-        
-        # Envia para o webhook do Teams
-        print("Enviando mensagem para o webhook do Teams...")
-        print(f"Tamanho da mensagem: {len(str(message))} bytes")
-        
-        response = requests.post(TEAMS_WEBHOOK_URL, json=message)
-        print(f"Status code da resposta: {response.status_code}")
-        print(f"Resposta do servidor: {response.text}")
-        
-        response.raise_for_status()
-        print("Relatório enviado com sucesso para o Teams")
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Erro ao enviar mensagem para o Teams: {str(e)}")
-        if hasattr(e.response, 'text'):
-            print(f"Detalhes do erro: {e.response.text}")
-        raise
-    except Exception as e:
-        print(f"Erro inesperado ao enviar mensagem para o Teams: {str(e)}")
-        raise
+# def send_to_teams(df):
+#     """Envia os dados do relatório para o webhook do Teams"""
+#     try:
+#         print("\n=== Iniciando envio do relatório para o Teams ===")
+#         print(f"URL do webhook: {TEAMS_WEBHOOK_URL}")
+#         
+#         # Formata os dados para o Teams
+#         print("Formatando dados para o Teams...")
+#         table_data = []
+#         for _, row in df.iterrows():
+#             table_data.append({
+#                 "ID do Pedido": str(row['ID do Pedido']),
+#                 "Pedido VTEX": str(row['Pedido VTEX']),
+#                 "Código do Seller": str(row['Código do Seller']),
+#                 "Data de criação do pedido": str(row['Data de criação do pedido']),
+#                 "Data de entrega do pedido": str(row['Data de entrega do pedido']),
+#                 "Data de aprovação do pedido": str(row['Data de aprovação do pedido']),
+#                 "Conciliação/Frequência de repasse": str(row['Conciliação/Frequência de repasse']),
+#                 "Total do pedido": f"R$ {row['Total do pedido']:.2f}",
+#                 "Total dos produtos": f"R$ {row['Total dos produtos']:.2f}",
+#                 "Total do frete": f"R$ {row['Total do frete']:.2f}",
+#                 "Comissão Produto (%)": f"{row['Comissão Produto (%)']:.2f}%",
+#                 "Comissão Frete (%)": f"{row['Comissão Frete (%)']:.2f}%",
+#                 "Meio de pagamento": str(row['Meio de pagamento']),
+#                 "Comissão Total": f"R$ {row['Comissão Total']:.2f}",
+#                 "Comissão Produto": f"R$ {row['Comissão Produto']:.2f}",
+#                 "Comissão Frete": f"R$ {row['Comissão Frete']:.2f}",
+#                 "Total repasse": f"R$ {row['Total repasse']:.2f}",
+#                 "Valor Produtos - Comissão Produto": f"R$ {row['Valor Produtos - Comissão Produto']:.2f}",
+#                 "Valor Frete - Comissão Frete": f"R$ {row['Valor Frete - Comissão Frete']:.2f}"
+#             })
+#             
+#             # Adiciona campos de campanha se existirem
+#             if 'Campanha' in row:
+#                 table_data[-1].update({
+#                     "Campanha": str(row['Campanha']),
+#                     "Data de início da campanha": str(row['Data de início da campanha']),
+#                     "Data de fim da campanha": str(row['Data de fim da campanha']),
+#                     "Descrição da campanha": str(row['Descrição da campanha'])
+#                 })
+#                 
+#         print(f"Dados formatados para {len(table_data)} pedidos")
+#         
+#         # Cria a mensagem para o Teams
+#         print("Criando mensagem para o Teams...")
+#         
+#         # Cria o cabeçalho da tabela
+#         headers = [
+#             "ID do Pedido", "Pedido VTEX", "Código do Seller",
+#             "Data de criação", "Data de entrega", "Data de aprovação",
+#             "Conciliação", "Total pedido", "Total produtos", "Total frete",
+#             "Comissão Produto (%)", "Comissão Frete (%)", "Meio de pagamento",
+#             "Comissão Total", "Comissão Produto", "Comissão Frete",
+#             "Total repasse", "Valor Produtos - Comissão", "Valor Frete - Comissão"
+#         ]
+#         
+#         # Adiciona campos de campanha se existirem
+#         if 'Campanha' in table_data[0]:
+#             headers.extend(["Campanha", "Início Campanha", "Fim Campanha", "Descrição Campanha"])
+#         
+#         table_header = "| " + " | ".join(headers) + " |"
+#         table_separator = "|" + "|".join(["---" for _ in range(len(headers))]) + "|"
+#         
+#         # Cria as linhas da tabela
+#         table_rows = []
+#         for item in table_data:
+#             row_values = [
+#                 item['ID do Pedido'],
+#                 item['Pedido VTEX'],
+#                 item['Código do Seller'],
+#                 item['Data de criação do pedido'],
+#                 item['Data de entrega do pedido'],
+#                 item['Data de aprovação do pedido'],
+#                 item['Conciliação/Frequência de repasse'],
+#                 item['Total do pedido'],
+#                 item['Total dos produtos'],
+#                 item['Total do frete'],
+#                 item['Comissão Produto (%)'],
+#                 item['Comissão Frete (%)'],
+#                 item['Meio de pagamento'],
+#                 item['Comissão Total'],
+#                 item['Comissão Produto'],
+#                 item['Comissão Frete'],
+#                 item['Total repasse'],
+#                 item['Valor Produtos - Comissão Produto'],
+#                 item['Valor Frete - Comissão Frete']
+#             ]
+#             
+#             # Adiciona campos de campanha se existirem
+#             if 'Campanha' in item:
+#                 row_values.extend([
+#                     item['Campanha'],
+#                     item['Data de início da campanha'],
+#                     item['Data de fim da campanha'],
+#                     item['Descrição da campanha']
+#                 ])
+#             
+#             row = "| " + " | ".join(row_values) + " |"
+#             table_rows.append(row)
+#         
+#         # Monta a tabela completa
+#         table = "\n".join([table_header, table_separator] + table_rows)
+#         
+#         # Cria a mensagem final
+#         message = {
+#             "text": f"# Relatório Financeiro - {datetime.now().strftime('%d/%m/%Y')}\n\n{table}"
+#         }
+#         
+#         print("Mensagem criada com sucesso")
+#         
+#         # Envia para o webhook do Teams
+#         print("Enviando mensagem para o webhook do Teams...")
+#         print(f"Tamanho da mensagem: {len(str(message))} bytes")
+#         
+#         response = requests.post(TEAMS_WEBHOOK_URL, json=message)
+#         print(f"Status code da resposta: {response.status_code}")
+#         print(f"Resposta do servidor: {response.text}")
+#         
+#         response.raise_for_status()
+#         print("Relatório enviado com sucesso para o Teams")
+#         
+#     except requests.exceptions.RequestException as e:
+#         print(f"Erro ao enviar mensagem para o Teams: {str(e)}")
+#         if hasattr(e.response, 'text'):
+#             print(f"Detalhes do erro: {e.response.text}")
+#         raise
+#     except Exception as e:
+#         print(f"Erro inesperado ao enviar mensagem para o Teams: {str(e)}")
+#         raise
 
 def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
     """Processa os dados do pedido e retorna um dicionário com os campos formatados"""
@@ -335,7 +336,8 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
         # Extrai dados do pedido
         order_id = order_data.get('orderData', {}).get('id', '')
         marketplace_id = order_data.get('marketplaceData', {}).get('marketPlaceId', '')
-        logging.info(f"Processando pedido {order_id} (marketplace: {marketplace_id})")
+        bandeira = order_data.get('marketplaceData', {}).get('hostname', '')
+        logging.info(f"Processando pedido {order_id} (marketplace: {marketplace_id}, bandeira: {bandeira})")
         
         # Obtém sellerName e tenant dos registros do ciclo
         seller_name = ''
@@ -417,6 +419,7 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
         return {
             'ID do Pedido': order_id,
             'Pedido VTEX': marketplace_id,
+            'Bandeira': bandeira,
             'Código do Seller': tenant,
             'Nome do Seller': seller_name,
             'Status Pedido': order_status,
@@ -465,6 +468,7 @@ def generate_excel_report(orders_data, output_file):
         columns_order = [
             'ID do Pedido',
             'Pedido VTEX',
+            'Bandeira',
             'Código do Seller',
             'Nome do Seller',
             'Status Pedido',
@@ -544,7 +548,7 @@ def generate_excel_report(orders_data, output_file):
                     df[col].astype(str).apply(len).max(),
                     len(col)
                 )
-                worksheet.column_dimensions[chr(65 + idx)].width = max_length + 2
+                worksheet.column_dimensions[get_column_letter(idx + 1)].width = max_length + 2
         
         logging.info(f"Relatório Excel gerado com sucesso: {output_file}")
         return df
@@ -554,104 +558,104 @@ def generate_excel_report(orders_data, output_file):
         logging.debug(f"Dados do DataFrame: {df.head().to_dict()}")
         raise
 
-def send_teams_notification(webhook_url, orders_data, cycle_info):
-    """Envia notificação para o Teams com os dados processados"""
-    try:
-        # Cria o DataFrame
-        df = pd.DataFrame(orders_data)
-        
-        # Formata os valores numéricos
-        numeric_columns = [
-            'Total do pedido', 'Total dos produtos', 'Total do frete',
-            'Comissão Produto (%)', 'Comissão Frete (%)', 'Comissão Total',
-            'Comissão Produto', 'Comissão Frete', 'Total repasse',
-            'Repasse Produto', 'Repasse Frete'
-        ]
-        
-        for col in numeric_columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df[col] = df[col].apply(lambda x: f"R$ {x:.2f}".replace('.', ',') if pd.notnull(x) else 'R$ 0,00')
-        
-        # Formata as datas
-        date_columns = [
-            'Data de criação do pedido', 'Data de entrega do pedido',
-            'Data de aprovação do pedido', 'Início Ciclo', 'Fim Ciclo'
-        ]
-        
-        for col in date_columns:
-            df[col] = pd.to_datetime(df[col], errors='coerce')
-            df[col] = df[col].dt.strftime('%d/%m/%Y %H:%M:%S')
-        
-        # Cria a tabela HTML
-        html_table = df.to_html(index=False, classes='table table-striped')
-        
-        # Cria o payload do Teams
-        payload = {
-            "type": "message",
-            "attachments": [
-                {
-                    "contentType": "application/vnd.microsoft.card.adaptive",
-                    "content": {
-                        "type": "AdaptiveCard",
-                        "body": [
-                            {
-                                "type": "TextBlock",
-                                "size": "Large",
-                                "weight": "Bolder",
-                                "text": "Relatório Financeiro - Marketplace"
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": f"Período: {cycle_info['beginningOfCycle']} até {cycle_info['endOfCycle']}",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": f"Data de transferência: {cycle_info['transferDate']}",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": f"Total de pedidos: {len(orders_data)}",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": f"Total de comissão: {df['Comissão Total'].sum()}",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": f"Total de repasse: {df['Total repasse'].sum()}",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": "Detalhamento dos pedidos:",
-                                "wrap": True
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": html_table,
-                                "wrap": True
-                            }
-                        ],
-                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                        "version": "1.0"
-                    }
-                }
-            ]
-        }
-        
-        # Envia a notificação
-        response = requests.post(webhook_url, json=payload)
-        response.raise_for_status()
-        
-        print("Notificação enviada com sucesso para o Teams")
-        
-    except Exception as e:
-        print(f"Erro ao enviar notificação para o Teams: {str(e)}")
-        raise
+# def send_teams_notification(webhook_url, orders_data, cycle_info):
+#     """Envia notificação para o Teams com os dados processados"""
+#     try:
+#         # Cria o DataFrame
+#         df = pd.DataFrame(orders_data)
+#         
+#         # Formata os valores numéricos
+#         numeric_columns = [
+#             'Total do pedido', 'Total dos produtos', 'Total do frete',
+#             'Comissão Produto (%)', 'Comissão Frete (%)', 'Comissão Total',
+#             'Comissão Produto', 'Comissão Frete', 'Total repasse',
+#             'Repasse Produto', 'Repasse Frete'
+#         ]
+#         
+#         for col in numeric_columns:
+#             df[col] = pd.to_numeric(df[col], errors='coerce')
+#             df[col] = df[col].apply(lambda x: f"R$ {x:.2f}".replace('.', ',') if pd.notnull(x) else 'R$ 0,00')
+#         
+#         # Formata as datas
+#         date_columns = [
+#             'Data de criação do pedido', 'Data de entrega do pedido',
+#             'Data de aprovação do pedido', 'Início Ciclo', 'Fim Ciclo'
+#         ]
+#         
+#         for col in date_columns:
+#             df[col] = pd.to_datetime(df[col], errors='coerce')
+#             df[col] = df[col].dt.strftime('%d/%m/%Y %H:%M:%S')
+#         
+#         # Cria a tabela HTML
+#         html_table = df.to_html(index=False, classes='table table-striped')
+#         
+#         # Cria o payload do Teams
+#         payload = {
+#             "type": "message",
+#             "attachments": [
+#                 {
+#                     "contentType": "application/vnd.microsoft.card.adaptive",
+#                     "content": {
+#                         "type": "AdaptiveCard",
+#                         "body": [
+#                             {
+#                                 "type": "TextBlock",
+#                                 "size": "Large",
+#                                 "weight": "Bolder",
+#                                 "text": "Relatório Financeiro - Marketplace"
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": f"Período: {cycle_info['beginningOfCycle']} até {cycle_info['endOfCycle']}",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": f"Data de transferência: {cycle_info['transferDate']}",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": f"Total de pedidos: {len(orders_data)}",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": f"Total de comissão: {df['Comissão Total'].sum()}",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": f"Total de repasse: {df['Total repasse'].sum()}",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": "Detalhamento dos pedidos:",
+#                                 "wrap": True
+#                             },
+#                             {
+#                                 "type": "TextBlock",
+#                                 "text": html_table,
+#                                 "wrap": True
+#                             }
+#                         ],
+#                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+#                         "version": "1.0"
+#                     }
+#                 }
+#             ]
+#         }
+#         
+#         # Envia a notificação
+#         response = requests.post(webhook_url, json=payload)
+#         response.raise_for_status()
+#         
+#         print("Notificação enviada com sucesso para o Teams")
+#         
+#     except Exception as e:
+#         print(f"Erro ao enviar notificação para o Teams: {str(e)}")
+#         raise
 
 def send_email(recipients, subject, body, attachments=None, is_error=False):
     """Envia email com o relatório em anexo"""
