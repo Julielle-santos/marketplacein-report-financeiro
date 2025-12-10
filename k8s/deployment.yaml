@@ -12,11 +12,9 @@ spec:
       labels:
         app: financial-report
     spec:
-      imagePullSecrets:
-      - name: harbor-registry-secret
       containers:
       - name: financial-report
-        image: registrymecpromo.azurecr.io/marketplacein/financial-report:1.0.24
+        image: prdbrscadastroacr01.azurecr.io/marketplacein/financial-report:1.0.25
         env:
         - name: TZ
           value: "America/Sao_Paulo"
