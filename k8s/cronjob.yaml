@@ -4,7 +4,7 @@ metadata:
   name: financial-report
   namespace: marketplace
 spec:
-  schedule: "0 8 * * *"  # Executa todos os dias às 8h
+  schedule: "55 23 * * *"  # Executa todos os dias às 23:55
   successfulJobsHistoryLimit: 30  # Mantém histórico dos últimos 30 jobs bem-sucedidos
   failedJobsHistoryLimit: 30      # Mantém histórico dos últimos 30 jobs com falha
   jobTemplate:

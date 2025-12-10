@@ -112,7 +112,7 @@ kubectl apply -f k8s/secret.yaml
 kubectl apply -f k8s/pv.yaml
 kubectl apply -f k8s/pvc.yaml
 
-# Aplicar CronJob (execução diária às 8h)
+# Aplicar CronJob (execução diária às 23:55)
 kubectl apply -f k8s/cronjob.yaml
 
 # Aplicar CronJob de limpeza (arquivos > 30 dias)
