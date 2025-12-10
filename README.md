@@ -11,7 +11,7 @@ Esta aplicação consulta a API do Omnik para obter dados financeiros dos pedido
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
 │   CronJob K8s   │ ───▶ │  financial_     │ ───▶ │   API Omnik     │
-│   (8h diário)   │      │  report.py      │      │                 │
+│(23:55h diário)  │      │  report.py      │      │                 │
 └─────────────────┘      └────────┬────────┘      └─────────────────┘
                                   │
                     ┌─────────────┴─────────────┐
