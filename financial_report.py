@@ -54,7 +54,7 @@ SMTP_SERVER = os.getenv('SMTP_SERVER', 'mailerprofarma.ger.local')
 SMTP_PORT = int(os.getenv('SMTP_PORT', '25'))
 SMTP_USER = os.getenv('SMTP_USER', 'd1000.omni@mailerprofarma.com.br')
 SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-EMAIL_FROM = os.getenv('EMAIL_FROM', 'TI Rede d1000 <d1000.ti.digital@mailerprofarma.com.br>')
+EMAIL_FROM = os.getenv('EMAIL_FROM', 'Julielle Pereira de Sa Santos <julielle.santos@reded1000.com.br>')
 BUSINESS_RECIPIENTS = os.getenv('BUSINESS_RECIPIENTS', '').split(',')
 IT_RECIPIENTS = os.getenv('IT_RECIPIENTS', '').split(',')
 
@@ -414,7 +414,29 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
             break
         
         campaign_vigency = f"{campaign_initial_date} - {campaign_final_date}" if campaign_initial_date and campaign_final_date else ''
-        
+
+        # Calcula FTR (número de parcelas) e rateios
+        ftr_raw = payment_plots
+        try:
+            ftr = int(payment_plots) if (payment_plots not in (None, '')) else 1
+            if ftr <= 0:
+                ftr = 1
+        except Exception:
+            ftr = 1
+
+        total_commission = financial_data.get('totalCommissionValue', 0.0)
+        total_transfer = financial_data.get('totalTransferSeller', 0.0)
+
+        try:
+            comissao_rateio = total_commission / ftr if ftr else 0.0
+        except Exception:
+            comissao_rateio = 0.0
+
+        try:
+            repasse_rateio = total_transfer / ftr if ftr else 0.0
+        except Exception:
+            repasse_rateio = 0.0
+
         logging.info(f"Processamento do pedido {order_id} concluído com sucesso")
         return {
             'ID do Pedido': order_id,
@@ -443,7 +465,10 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
             'Repasse Frete': freight_transfer,
             'Campanha': campaign_id,
             'Vigência': campaign_vigency,
-            'Descrição da campanha': campaign_description
+            'Descrição da campanha': campaign_description,
+            'FTR': ftr_raw,
+            'Comissão Rateio': comissao_rateio,
+            'Repasse Rateio': repasse_rateio
         }
     except Exception as e:
         logging.error(f"Erro ao processar dados do pedido {order_id}: {str(e)}")
@@ -492,7 +517,10 @@ def generate_excel_report(orders_data, output_file):
             'Repasse Frete',
             'Campanha',
             'Vigência',
-            'Descrição da campanha'
+            'Descrição da campanha',
+            'FTR',
+            'Comissão Rateio',
+            'Repasse Rateio'
         ]
         
         # Garante que todas as colunas existam no DataFrame
@@ -515,7 +543,9 @@ def generate_excel_report(orders_data, output_file):
             'Comissão Frete',
             'Total repasse',
             'Repasse Produto',
-            'Repasse Frete'
+            'Repasse Frete',
+            'Comissão Rateio',
+            'Repasse Rateio'
         ]
         
         for col in numeric_columns:
@@ -768,17 +798,53 @@ def process_orders():
                 if not order_data:
                     logging.warning(f"Não foi possível obter detalhes do pedido {marketplace_id}, pulando...")
                     continue
-                    
+
                 # Obtém detalhes financeiros do pedido
                 financial_data = get_order_financial_details(marketplace_id, tenant)
                 if not financial_data:
                     logging.warning(f"Não foi possível obter detalhes financeiros do pedido {marketplace_id}, pulando...")
                     continue
-                
+
+                # Determina quantas parcelas (amountPlots) para duplicar a linha
+                plots_count = 1
+                try:
+                    for payment in order_data.get('paymentData', {}).get('formsPayments', []):
+                        val = payment.get('amountPlots', '')
+                        if val in (None, ''):
+                            plots_count = 1
+                        else:
+                            try:
+                                plots_count = int(val)
+                            except Exception:
+                                plots_count = 1
+                        break
+                except Exception:
+                    plots_count = 1
+
                 # Processa os dados do pedido
                 order_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers)
-                orders_data.append(order_info)
-                logging.info(f"Pedido {marketplace_id} processado com sucesso")
+
+                # Filtra apenas status desejados
+                try:
+                    status_val = str(order_info.get('Status Pedido', '')).upper()
+                except Exception:
+                    status_val = ''
+
+                allowed_statuses = {'DELIVERED', 'CANCELED', 'RETURNED'}
+                if status_val not in allowed_statuses:
+                    logging.info(f"Pedido {marketplace_id} com status '{order_info.get('Status Pedido')}' ignorado (não faz parte dos status permitidos)")
+                    continue
+
+                # Adiciona a linha repetida de acordo com a quantidade de parcelas
+                try:
+                    for _ in range(max(1, plots_count)):
+                        orders_data.append(order_info.copy())
+                    logging.info(f"Pedido {marketplace_id} processado com sucesso (linhas adicionadas: {max(1, plots_count)})")
+                except Exception as e:
+                    logging.error(f"Erro ao duplicar registro do pedido {marketplace_id}: {str(e)}")
+                    # Mesmo em caso de erro na duplicação, adiciona ao menos uma linha
+                    orders_data.append(order_info)
+                    continue
                 
             except Exception as e:
                 logging.error(f"Erro ao processar pedido {marketplace_id} do tenant {tenant}: {str(e)}")
