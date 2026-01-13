@@ -9,7 +9,7 @@ import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -158,6 +158,24 @@ def get_order_details(marketplace_id, tenant):
     logging.debug(f"Detalhes do pedido: {json.dumps(order_details, indent=2)}")
     return order_details
 
+# Consulta para CNPJ Seller / Precisa de ajuste ainda
+def sellers_info(tenant):
+    """Consulta os detalhes do seller"""
+    # Remove as primeiras 4 letras do tenant e mantém apenas os números
+    tenant_clean = tenant[4:] if len(tenant) > 4 else tenant
+    
+    logging.info(f"=== Consultando detalhes do seller (tenant: {tenant} -> {tenant_clean}) ===")
+    url = f"{BASE_URL}/HUB/v1/sellers/{tenant_clean}"
+    
+    # Cria headers específicos para este tenant
+    headers = {**HEADERS, 'seller': tenant}
+    
+    response = make_request('GET', url, headers=headers)
+    seller_details = response.json()
+    logging.info(f"Detalhes do seller obtidos com sucesso")
+    logging.debug(f"Detalhes do seller: {json.dumps(seller_details, indent=2)}")
+    return seller_details
+
 def get_order_financial_details(marketplace_id, tenant):
     """Consulta os detalhes financeiros do pedido"""
     logging.info(f"=== Consultando detalhes financeiros do pedido {marketplace_id} ===")
@@ -197,6 +215,47 @@ def format_payment_method(payment):
     card = payment.get('card', '')
     plots = payment.get('amountPlots', '')
     return f"{payment_type} {card} {plots}x"
+
+def calculate_installment_payment_date(base_date_str, installment_number):
+    """Calcula a data de pagamento para uma parcela específica (5º dia útil do mês)"""
+    try:
+        # Parse da data no formato 'YYYY-MM-DD', 'YYYY-MM-DDTHH:MM:SS' ou 'DD/MM/YYYY'
+        if '/' in str(base_date_str):
+            base_date = datetime.strptime(str(base_date_str), '%d/%m/%Y').date()
+        elif 'T' in str(base_date_str):
+            # Formato ISO: YYYY-MM-DDTHH:MM:SS
+            base_date = datetime.strptime(str(base_date_str).split('T')[0], '%Y-%m-%d').date()
+        else:
+            # Formato: YYYY-MM-DD
+            base_date = datetime.strptime(str(base_date_str), '%Y-%m-%d').date()
+        
+        # Calcula o primeiro dia do mês seguinte + (installment_number - 1) meses
+        target_month = base_date.month + installment_number
+        target_year = base_date.year
+        
+        # Ajusta o ano se necessário
+        if target_month > 12:
+            target_year += (target_month - 1) // 12
+            target_month = ((target_month - 1) % 12) + 1
+        
+        # Calcula o primeiro dia do mês alvo
+        first_day_target_month = date(target_year, target_month, 1)
+        
+        # Encontra o 5º dia útil
+        business_days_count = 0
+        current_date = first_day_target_month
+        
+        while business_days_count < 5:
+            if current_date.weekday() < 5:  # 0-4 = segunda a sexta
+                business_days_count += 1
+                if business_days_count == 5:
+                    return current_date.strftime('%d/%m/%Y')
+            current_date += timedelta(days=1)
+        
+        return current_date.strftime('%d/%m/%Y')
+    except Exception as e:
+        logging.error(f"Erro ao calcular data de pagamento da parcela {installment_number} para {base_date_str}: {str(e)}")
+        return ''
 
 # def send_to_teams(df):
 #     """Envia os dados do relatório para o webhook do Teams"""
@@ -328,7 +387,7 @@ def format_payment_method(payment):
 #         print(f"Erro inesperado ao enviar mensagem para o Teams: {str(e)}")
 #         raise
 
-def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
+def process_order_data(order_data, financial_data, cycle_data, cycle_registers, installment_number=1, total_installments=1):
     """Processa os dados do pedido e retorna um dicionário com os campos formatados"""
     try:
         logging.info("=== Processando dados do pedido ===")
@@ -342,12 +401,23 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
         # Obtém sellerName e tenant dos registros do ciclo
         seller_name = ''
         tenant = ''
+        cnpj_seller = ''
         for register in cycle_registers:
             if register.get('marketplaceId') == marketplace_id and register.get('type') == 'SALE':
                 seller_name = register.get('sellerName', '')
                 tenant = register.get('tenant', '')
                 logging.info(f"Seller encontrado: {seller_name} (tenant: {tenant})")
                 break
+        
+        # Consulta detalhes do seller para obter o CNPJ/ID
+        if tenant:
+            try:
+                seller_details = sellers_info(tenant)
+                cnpj_seller = seller_details.get('id', '')
+                logging.info(f"CNPJ Seller obtido: {cnpj_seller}")
+            except Exception as e:
+                logging.warning(f"Não foi possível obter CNPJ do seller {seller_name}: {str(e)}")
+                cnpj_seller = ''
         
         order_status = order_data.get('orderData', {}).get('status', '')
         create_date = order_data.get('createDate', '')
@@ -437,6 +507,12 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
         except Exception:
             repasse_rateio = 0.0
 
+        # Calcula a data de pagamento para a parcela
+        data_pagamento = calculate_installment_payment_date(end_of_cycle, installment_number) if end_of_cycle else ''
+        
+        # Formata o número da parcela
+        numero_parcela = f"{installment_number}/{total_installments}"
+
         logging.info(f"Processamento do pedido {order_id} concluído com sucesso")
         return {
             'ID do Pedido': order_id,
@@ -444,6 +520,7 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
             'Bandeira': bandeira,
             'Código do Seller': tenant,
             'Nome do Seller': seller_name,
+            'CNPJ Seller': cnpj_seller,
             'Status Pedido': order_status,
             'Data de criação do pedido': create_date,
             'Data de entrega do pedido': delivery_date,
@@ -467,8 +544,10 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers):
             'Vigência': campaign_vigency,
             'Descrição da campanha': campaign_description,
             'FTR': ftr_raw,
+            'Data Pagamento': data_pagamento,
             'Comissão Rateio': comissao_rateio,
-            'Repasse Rateio': repasse_rateio
+            'Repasse Rateio': repasse_rateio,
+            'Parcela': numero_parcela
         }
     except Exception as e:
         logging.error(f"Erro ao processar dados do pedido {order_id}: {str(e)}")
@@ -496,6 +575,7 @@ def generate_excel_report(orders_data, output_file):
             'Bandeira',
             'Código do Seller',
             'Nome do Seller',
+            'CNPJ Seller',
             'Status Pedido',
             'Data de criação do pedido',
             'Data de entrega do pedido',
@@ -519,8 +599,10 @@ def generate_excel_report(orders_data, output_file):
             'Vigência',
             'Descrição da campanha',
             'FTR',
+            'Data Pagamento',
             'Comissão Rateio',
-            'Repasse Rateio'
+            'Repasse Rateio',
+            'Parcela'
         ]
         
         # Garante que todas as colunas existam no DataFrame
@@ -559,13 +641,18 @@ def generate_excel_report(orders_data, output_file):
             'Data de entrega do pedido',
             'Data de aprovação do pedido',
             'Início Ciclo',
-            'Fim Ciclo'
+            'Fim Ciclo',
+            'Data Pagamento'
         ]
         
         for col in date_columns:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce')
-                df[col] = df[col].dt.strftime('%d/%m/%Y %H:%M:%S')
+                if col == 'Data Pagamento':
+                    # Data Pagamento já está no formato DD/MM/YYYY
+                    df[col] = df[col].astype(str)
+                else:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                    df[col] = df[col].dt.strftime('%d/%m/%Y %H:%M:%S')
         
         # Salva o arquivo Excel
         df.to_excel(output_file, index=False, sheet_name='Relatório Financeiro')
@@ -822,7 +909,7 @@ def process_orders():
                     plots_count = 1
 
                 # Processa os dados do pedido
-                order_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers)
+                order_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers, 1, plots_count)
 
                 # Filtra apenas status desejados
                 try:
@@ -837,8 +924,10 @@ def process_orders():
 
                 # Adiciona a linha repetida de acordo com a quantidade de parcelas
                 try:
-                    for _ in range(max(1, plots_count)):
-                        orders_data.append(order_info.copy())
+                    for installment in range(1, max(2, plots_count + 1)):
+                        # Reprocessa os dados para cada parcela com as informações corretas
+                        installment_info = process_order_data(order_data, financial_data, cycle_info, cycle_registers, installment, plots_count)
+                        orders_data.append(installment_info)
                     logging.info(f"Pedido {marketplace_id} processado com sucesso (linhas adicionadas: {max(1, plots_count)})")
                 except Exception as e:
                     logging.error(f"Erro ao duplicar registro do pedido {marketplace_id}: {str(e)}")
