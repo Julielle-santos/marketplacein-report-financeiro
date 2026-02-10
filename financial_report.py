@@ -158,23 +158,24 @@ def get_order_details(marketplace_id, tenant):
     logging.debug(f"Detalhes do pedido: {json.dumps(order_details, indent=2)}")
     return order_details
 
-# Consulta para CNPJ Seller / Precisa de ajuste ainda
-def sellers_info(tenant):
-    """Consulta os detalhes do seller"""
-    # Remove as primeiras 4 letras do tenant e mantém apenas os números
-    tenant_clean = tenant[4:] if len(tenant) > 4 else tenant
-    
-    logging.info(f"=== Consultando detalhes do seller (tenant: {tenant} -> {tenant_clean}) ===")
-    url = f"{BASE_URL}/HUB/v1/sellers/{tenant_clean}"
-    
-    # Cria headers específicos para este tenant
-    headers = {**HEADERS, 'seller': tenant}
-    
-    response = make_request('GET', url, headers=headers)
-    seller_details = response.json()
-    logging.info(f"Detalhes do seller obtidos com sucesso")
-    logging.debug(f"Detalhes do seller: {json.dumps(seller_details, indent=2)}")
-    return seller_details
+#comentando parte do código
+## Consulta para CNPJ Seller / Precisa de ajuste ainda
+#def sellers_info(tenant):
+#    """Consulta os detalhes do seller"""
+#    # Remove as primeiras 4 letras do tenant e mantém apenas os números
+#    tenant_clean = tenant[4:] if len(tenant) > 4 else tenant
+#    
+#    logging.info(f"=== Consultando detalhes do seller (tenant: {tenant} -> {tenant_clean}) ===")
+#    url = f"{BASE_URL}/HUB/v1/sellers/{tenant_clean}"
+#    
+#    # Cria headers específicos para este tenant
+#    headers = {**HEADERS, 'seller': tenant}
+#    
+#   response = make_request('GET', url, headers=headers)
+#    seller_details = response.json()
+    #logging.info(f"Detalhes do seller obtidos com sucesso")
+   # logging.debug(f"Detalhes do seller: {json.dumps(seller_details, indent=2)}")
+  #  return seller_details
 
 def get_order_financial_details(marketplace_id, tenant):
     """Consulta os detalhes financeiros do pedido"""
@@ -396,12 +397,19 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers, 
         order_id = order_data.get('orderData', {}).get('id', '')
         marketplace_id = order_data.get('marketplaceData', {}).get('marketPlaceId', '')
         bandeira = order_data.get('marketplaceData', {}).get('hostname', '')
+        match bandeira.strip().lower():
+            case "drogasmil" | "farmalifebr":
+                cnpj_bandeira = "42.225.938/0001-50"
+            case "rosario":
+                cnpj_bandeira = "00.447.821/0001-70"
+            case "tamoio":
+                cnpj_bandeira = "07.781.007/0034-03"
         logging.info(f"Processando pedido {order_id} (marketplace: {marketplace_id}, bandeira: {bandeira})")
         
         # Obtém sellerName e tenant dos registros do ciclo
         seller_name = ''
         tenant = ''
-        cnpj_seller = ''
+       #comentando cnpj_seller = ''
         for register in cycle_registers:
             if register.get('marketplaceId') == marketplace_id and register.get('type') == 'SALE':
                 seller_name = register.get('sellerName', '')
@@ -409,15 +417,16 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers, 
                 logging.info(f"Seller encontrado: {seller_name} (tenant: {tenant})")
                 break
         
-        # Consulta detalhes do seller para obter o CNPJ/ID
-        if tenant:
-            try:
-                seller_details = sellers_info(tenant)
-                cnpj_seller = seller_details.get('id', '')
-                logging.info(f"CNPJ Seller obtido: {cnpj_seller}")
-            except Exception as e:
-                logging.warning(f"Não foi possível obter CNPJ do seller {seller_name}: {str(e)}")
-                cnpj_seller = ''
+        #comentando parte do código
+       # # Consulta detalhes do seller para obter o CNPJ/ID
+      #  if tenant:
+     #       try:
+      #          seller_details = sellers_info(tenant)
+      #          cnpj_seller = seller_details.get('id', '')
+      #          logging.info(f"CNPJ Seller obtido: {cnpj_seller}")
+       #     except Exception as e:
+        #        logging.warning(f"Não foi possível obter CNPJ do seller {seller_name}: {str(e)}")
+         #       cnpj_seller = ''
         
         order_status = order_data.get('orderData', {}).get('status', '')
         create_date = order_data.get('createDate', '')
@@ -518,9 +527,10 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers, 
             'ID do Pedido': order_id,
             'Pedido VTEX': marketplace_id,
             'Bandeira': bandeira,
+            'CNPJ Bandeira': cnpj_bandeira,
             'Código do Seller': tenant,
             'Nome do Seller': seller_name,
-            'CNPJ Seller': cnpj_seller,
+         #comentando   'CNPJ Seller': cnpj_seller,
             'Status Pedido': order_status,
             'Data de criação do pedido': create_date,
             'Data de entrega do pedido': delivery_date,
@@ -573,9 +583,10 @@ def generate_excel_report(orders_data, output_file):
             'ID do Pedido',
             'Pedido VTEX',
             'Bandeira',
+            'CNPJ Bandeira',
             'Código do Seller',
             'Nome do Seller',
-            'CNPJ Seller',
+         #comentando   'CNPJ Seller',
             'Status Pedido',
             'Data de criação do pedido',
             'Data de entrega do pedido',
