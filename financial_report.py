@@ -218,7 +218,7 @@ def format_payment_method(payment):
     return f"{payment_type} {card} {plots}x"
 
 def calculate_installment_payment_date(base_date_str, installment_number):
-    """Calcula a data de pagamento para uma parcela específica (5º dia útil do mês)"""
+    """Calcula a data de pagamento para uma parcela específica (sempre dia 8 do mês)"""
     try:
         # Parse da data no formato 'YYYY-MM-DD', 'YYYY-MM-DDTHH:MM:SS' ou 'DD/MM/YYYY'
         if '/' in str(base_date_str):
@@ -229,31 +229,19 @@ def calculate_installment_payment_date(base_date_str, installment_number):
         else:
             # Formato: YYYY-MM-DD
             base_date = datetime.strptime(str(base_date_str), '%Y-%m-%d').date()
-        
-        # Calcula o primeiro dia do mês seguinte + (installment_number - 1) meses
+
+        # Define o mês/ano alvo: mês seguinte + (installment_number - 1) meses
         target_month = base_date.month + installment_number
         target_year = base_date.year
-        
+
         # Ajusta o ano se necessário
         if target_month > 12:
             target_year += (target_month - 1) // 12
             target_month = ((target_month - 1) % 12) + 1
-        
-        # Calcula o primeiro dia do mês alvo
-        first_day_target_month = date(target_year, target_month, 1)
-        
-        # Encontra o 5º dia útil
-        business_days_count = 0
-        current_date = first_day_target_month
-        
-        while business_days_count < 5:
-            if current_date.weekday() < 5:  # 0-4 = segunda a sexta
-                business_days_count += 1
-                if business_days_count == 5:
-                    return current_date.strftime('%d/%m/%Y')
-            current_date += timedelta(days=1)
-        
-        return current_date.strftime('%d/%m/%Y')
+
+        # Data de pagamento sempre no dia 8 do mês alvo
+        payment_date = date(target_year, target_month, 8)
+        return payment_date.strftime('%d/%m/%Y')
     except Exception as e:
         logging.error(f"Erro ao calcular data de pagamento da parcela {installment_number} para {base_date_str}: {str(e)}")
         return ''
