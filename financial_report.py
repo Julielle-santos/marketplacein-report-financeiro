@@ -510,6 +510,15 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers, 
         # Formata o número da parcela
         numero_parcela = f"{installment_number}/{total_installments}"
 
+        # Calculo Comissão Rapasse Líquido
+        comissao_rapasse_liquido = comissao_rateio - (comissao_rateio * 0.015)
+
+        # Calculo Valor a Deduzir
+        valor_a_deduzir = comissao_rateio - comissao_rapasse_liquido
+
+        # Calculo Repasse com o Imposto Devolvido
+        repasse_com_imposto_devolvido = repasse_rateio + valor_a_deduzir
+
         logging.info(f"Processamento do pedido {order_id} concluído com sucesso")
         return {
             'ID do Pedido': order_id,
@@ -545,7 +554,11 @@ def process_order_data(order_data, financial_data, cycle_data, cycle_registers, 
             'Data Pagamento': data_pagamento,
             'Comissão Rateio': comissao_rateio,
             'Repasse Rateio': repasse_rateio,
-            'Parcela': numero_parcela
+            'Parcela': numero_parcela,
+            'Comissão Rapasse Líquido': comissao_rapasse_liquido,
+            'Valor a Deduzir': valor_a_deduzir,
+            'Repasse com o Imposto Devolvido': repasse_com_imposto_devolvido,
+            'Emissão de Nota Fiscal': ""
         }
     except Exception as e:
         logging.error(f"Erro ao processar dados do pedido {order_id}: {str(e)}")
@@ -601,7 +614,11 @@ def generate_excel_report(orders_data, output_file):
             'Data Pagamento',
             'Comissão Rateio',
             'Repasse Rateio',
-            'Parcela'
+            'Parcela',
+            'Comissão Rapasse Líquido',
+            'Valor a Deduzir',
+            'Repasse com o Imposto Devolvido',
+            'Emissão de Nota Fiscal'
         ]
         
         # Garante que todas as colunas existam no DataFrame
@@ -626,7 +643,10 @@ def generate_excel_report(orders_data, output_file):
             'Repasse Produto',
             'Repasse Frete',
             'Comissão Rateio',
-            'Repasse Rateio'
+            'Repasse Rateio',
+            'Comissão Rapasse Líquido',
+            'Valor a Deduzir',
+            'Repasse com o Imposto Devolvido'
         ]
         
         for col in numeric_columns:
